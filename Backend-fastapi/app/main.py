@@ -1,31 +1,32 @@
-from fastapi import FastAPI
-from models import MsgPayload, Base, engine
+from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+from typing import List
+from app.database import Base, engine, get_db
+from app import crud, schemas, models
+from app.routes import router
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-messages_list: dict[int, MsgPayload] = {}
+app.include_router(router)
 
-@app.on_event("startup")
-def startup_event():
-    Base.metadata.create_all(bind=engine)
+@app.post("/journal-entries/", response_model=schemas.JournalEntryResponse)
+def create_entry(entry: schemas.JournalEntryCreate, db: Session = Depends(get_db)):
+    return crud.create_journal_entry(db, entry)
 
-@app.get("/")
-def root() -> dict[str, str]:
-    return {"message": "Hello"}
+@app.get("/journal-entries/", response_model=List[schemas.JournalEntryResponse])
+def list_entries(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    return crud.get_journal_entries(db, skip=skip, limit=limit)
 
+@app.delete("/journal-entries/{entry_id}")
+def delete_entry(entry_id: int, db: Session = Depends(get_db)):
+    entry = crud.delete_journal_entry(db, entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return {"message": "Entry deleted"}
 
-@app.get("/about")
-def about() -> dict[str, str]:
-    return {"message": "This is the about page."}
-
-
-@app.post("/messages/{msg_name}/")
-def add_msg(msg_name: str) -> dict[str, MsgPayload]:
-    msg_id = max(messages_list.keys()) + 1 if messages_list else 0
-    messages_list[msg_id] = MsgPayload(msg_id=msg_id, msg_name=msg_name)
-
-    return {"message": messages_list[msg_id]}
-
-@app.get("/messages")
-def message_items() -> dict[str, dict[int, MsgPayload]]:
-    return {"messages:": messages_list}
+@app.get("/journal-entries/search/", response_model=List[schemas.JournalEntryResponse])
+def search_entries(query: str, db: Session = Depends(get_db)):
+    return db.query(models.JournalEntry).filter(
+        models.JournalEntry.title.ilike(f"%{query}%")
+    ).all()

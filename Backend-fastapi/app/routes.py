@@ -1,18 +1,18 @@
 from fastapi import Depends, APIRouter
 from sqlalchemy.orm import Session
-from database import get_db
-from crud import create_user, get_users, add_journal_entry
+from app.database import get_db
+from app import crud, schemas
 
 router = APIRouter()
 
-@router.post("/users/")
-def create_new_user(username: str, email: str, db: Session = Depends(get_db)):
-    return create_user(db, username, email)
+@router.post("/users/", response_model=schemas.UserResponse)
+def create_new_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    return crud.create_user(db, user)
 
-@router.get("/users/")
+@router.get("/users/", response_model=list[schemas.UserResponse])
 def list_users(db: Session = Depends(get_db)):
-    return get_users(db)
+    return crud.get_users(db)
 
-@router.post("/entries/")
-def create_entry(user_id: int, title: str, content: str, db: Session = Depends(get_db)):
-    return add_journal_entry(db, user_id, title, content)
+@router.post("/entries/", response_model=schemas.JournalEntryResponse)
+def create_entry(entry: schemas.JournalEntryCreate, db: Session = Depends(get_db)):
+    return crud.add_journal_entry(db, entry)
