@@ -1,11 +1,9 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
+from app.config import DATABASE_URI  # Use the unified config
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/dbname")
-
-engine = create_engine(DATABASE_URL)
+engine = create_engine(DATABASE_URI)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
