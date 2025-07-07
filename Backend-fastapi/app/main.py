@@ -4,6 +4,8 @@ from typing import List
 from app.database import Base, engine, get_db
 from app import crud, schemas, models
 from app.routes import router
+from fastapi.responses import JSONResponse
+from app.crud import export_journal_entries, search_journal_entries
 
 Base.metadata.create_all(bind=engine)
 
@@ -30,3 +32,12 @@ def search_entries(query: str, db: Session = Depends(get_db)):
     return db.query(models.JournalEntry).filter(
         models.JournalEntry.title.ilike(f"%{query}%")
     ).all()
+
+@app.get("/journal-entries/export/{user_id}")
+def export_entries(user_id: str, db: Session = Depends(get_db)):
+    data = export_journal_entries(db, user_id)
+    return JSONResponse(content=data)
+
+@app.get("/journal-entries/advanced-search/", response_model=List[schemas.JournalEntryResponse])
+def advanced_search(query: str = "", user_id: str = None, mood: str = None, tags: list = None, sort_by: str = None, desc: bool = False, db: Session = Depends(get_db)):
+    return search_journal_entries(db, query, user_id, mood, tags, sort_by, desc)
